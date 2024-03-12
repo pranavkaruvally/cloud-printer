@@ -2,12 +2,16 @@ use std::convert::Infallible;
 use std::net::SocketAddr;
 
 use http_body_util::Full;
-use hyper::body::Bytes;
+use hyper::body::{Body, Bytes};
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{Request, Response};
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
+
+use hyper::body::Frame;
+use hyper::{Method, StatusCode};
+use http_body_util::{combinators::BoxBody, BodyExt, Empty};
 
 async fn hello(_: Request<hyper::body::Incoming>) -> Result<Response<Full<Bytes>>, Infallible> {
     Ok(Response::new(Full::new(Bytes::from("Hello, World!"))))
@@ -24,11 +28,72 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let io = TokioIo::new(stream);
         tokio::task::spawn(async move {
             if let Err(err) = http1::Builder::new()
-                .serve_connection(io, service_fn(hello))
+                .serve_connection(io, service_fn(echo))
                 .await
             {
                 println!("Error serving connection: {:?}", err);
             }
         });
     }
+}
+
+async fn echo(
+    req: Request<hyper::body::Incoming>,
+) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
+    match (req.method(), req.uri().path()) {
+        (&Method::GET, "/") => Ok(Response::new(full(
+            "Try POSTing data to /echo",
+        ))),
+
+        (&Method::POST, "/echo") => Ok(Response::new(req.into_body().boxed())),
+
+        (&Method::POST, "/echo/uppercase") => {
+            let frame_stream = req.into_body().map_frame(|frame| {
+                let frame = if let Ok(data) = frame.into_data() {
+                    data.iter()
+                        .map(|byte| byte.to_ascii_uppercase())
+                        .collect::<Bytes>()
+                } else {
+                    Bytes::new()
+                };
+                Frame::data(frame)
+            });
+
+        Ok(Response::new(frame_stream.boxed()))
+        }
+
+        (&Method::POST, "/echo/reversed") => {
+            let upper = req.body().size_hint().upper().unwrap_or(u64::MAX);
+            if upper > 1024 * 64 {
+                let mut resp = Response::new(full("Body too big"));
+                *resp.status_mut() = hyper::StatusCode::PAYLOAD_TOO_LARGE;
+                return Ok(resp);
+            }
+
+            let whole_body = req.collect().await?.to_bytes();
+            let reversed_body = whole_body.iter()
+                .rev()
+                .cloned()
+                .collect::<Vec<u8>>();
+
+            Ok(Response::new(full(reversed_body)))
+        }
+
+        _ => {
+            let mut not_found = Response::new(empty());
+            *not_found.status_mut() = StatusCode::NOT_FOUND;
+            Ok(not_found)
+        }
+    }
+}
+
+fn empty() -> BoxBody<Bytes, hyper::Error> {
+    Empty::<Bytes>::new()
+        .map_err(|never| match never {})
+        .boxed()
+}
+fn full<T: Into<Bytes>>(chunk: T) -> BoxBody<Bytes, hyper::Error> {
+    Full::new(chunk.into())
+        .map_err(|never| match never {})
+        .boxed()
 }

@@ -13,9 +13,11 @@ use hyper::body::Frame;
 use hyper::{Method, StatusCode};
 use http_body_util::{combinators::BoxBody, BodyExt, Empty};
 
-async fn hello(_: Request<hyper::body::Incoming>) -> Result<Response<Full<Bytes>>, Infallible> {
-    Ok(Response::new(Full::new(Bytes::from("Hello, World!"))))
-}
+use std::fs;
+
+//async fn hello(_: Request<hyper::body::Incoming>) -> Result<Response<Full<Bytes>>, Infallible> {
+//    Ok(Response::new(Full::new(Bytes::from("Hello, World!"))))
+//}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -40,10 +42,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 async fn echo(
     req: Request<hyper::body::Incoming>,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
+    let contents: String;
     match (req.method(), req.uri().path()) {
-        (&Method::GET, "/") => Ok(Response::new(full(
-            "Try POSTing data to /echo",
-        ))),
+        (&Method::GET, "/") => {
+            contents = fs::read_to_string("hello.html").unwrap();
+            //Ok(Response::new(full(
+            //"Try POSTing data to /echo",
+            //)))
+            Ok(Response::new(full(contents)))
+    },
+
+        (&Method::GET, "/upload") => {
+            contents = fs::read_to_string("upload.html").unwrap();
+            Ok(Response::new(full(contents)))
+        },
 
         (&Method::POST, "/echo") => Ok(Response::new(req.into_body().boxed())),
 

@@ -1,4 +1,3 @@
-use std::convert::Infallible;
 use std::net::SocketAddr;
 
 use http_body_util::Full;
@@ -14,10 +13,7 @@ use hyper::{Method, StatusCode};
 use http_body_util::{combinators::BoxBody, BodyExt, Empty};
 
 use std::fs;
-
-//async fn hello(_: Request<hyper::body::Incoming>) -> Result<Response<Full<Bytes>>, Infallible> {
-//    Ok(Response::new(Full::new(Bytes::from("Hello, World!"))))
-//}
+use std::io::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -45,19 +41,21 @@ async fn echo(
     let contents: String;
     match (req.method(), req.uri().path()) {
         (&Method::GET, "/") => {
-            contents = fs::read_to_string("hello.html").unwrap();
-            //Ok(Response::new(full(
-            //"Try POSTing data to /echo",
-            //)))
+            contents = fs::read_to_string("templates/hello.html").unwrap();
             Ok(Response::new(full(contents)))
     },
 
         (&Method::GET, "/upload") => {
-            contents = fs::read_to_string("upload.html").unwrap();
+            contents = fs::read_to_string("templates/upload.html").unwrap();
             Ok(Response::new(full(contents)))
         },
 
         (&Method::POST, "/echo") => Ok(Response::new(req.into_body().boxed())),
+
+        (&Method::POST, "/print") => {
+            _ = parse_multipart(req).await;
+            Ok(Response::new(full("Printed...")))
+        },
 
         (&Method::POST, "/echo/uppercase") => {
             let frame_stream = req.into_body().map_frame(|frame| {
@@ -108,4 +106,13 @@ fn full<T: Into<Bytes>>(chunk: T) -> BoxBody<Bytes, hyper::Error> {
     Full::new(chunk.into())
         .map_err(|never| match never {})
         .boxed()
+}
+
+async fn parse_multipart(req: Request<hyper::body::Incoming>) {
+    let data = req.into_body().collect().await.unwrap().to_bytes();
+
+    //println!("{:?}", &data);
+
+    let mut file = std::fs::File::create("dst/print_file.pdf").unwrap();
+    file.write_all(&data).unwrap();
 }

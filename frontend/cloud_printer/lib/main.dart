@@ -1,7 +1,18 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_printer/multipart_send.dart';
+import 'package:cloud_printer/front_page.dart';
+import 'package:window_size/window_size.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    setWindowTitle('Cloud Printer');
+    setWindowMaxSize(const Size(578, 1024));
+    setWindowMinSize(const Size(578, 1024));
+  }
   runApp(const MyApp());
 }
 
@@ -41,30 +52,35 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: const FloatingActionButton(
-        onPressed: pickFileAndMultipartSend,// _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
-    );
+    return FrontPage();
   }
+
+  //@override
+  //Widget build(BuildContext context) {
+  //  return Scaffold(
+  //    appBar: AppBar(
+  //      backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+  //      title: Text(widget.title),
+  //    ),
+  //    body: Center(
+  //      child: Column(
+  //        mainAxisAlignment: MainAxisAlignment.center,
+  //        children: <Widget>[
+  //          const Text(
+  //            'You have pushed the button this many times:',
+  //          ),
+  //          Text(
+  //            '$_counter',
+  //            style: Theme.of(context).textTheme.headlineMedium,
+  //          ),
+  //        ],
+  //      ),
+  //    ),
+  //    floatingActionButton: const FloatingActionButton(
+  //      onPressed: pickFileAndMultipartSend,// _incrementCounter,
+  //      tooltip: 'Increment',
+  //      child: Icon(Icons.add),
+  //    ), // This trailing comma makes auto-formatting nicer for build methods.
+  //  );
+  //}
 }

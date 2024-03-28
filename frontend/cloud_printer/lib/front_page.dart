@@ -2,84 +2,108 @@ import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 
 
-class FrontPage extends StatelessWidget {
+class FrontPage extends StatefulWidget {
 	const FrontPage({super.key});
 
-	Widget miniFolder({String title="Folder name", int color = 0xffadabf2}) {
+  @override
+  State<FrontPage> createState() => _FrontPageState();
+}
+
+class _FrontPageState extends State<FrontPage> {
+  int _color = 0xff9bdae6;
+
+	Widget miniFolder({String title="Folder name", int color = 0xff9bdae6}) {
 			return GestureDetector(
-				onTap: () {},
+				onTap: () {
+          setState(() {
+            _color = color;
+          });
+        },
+
 				child: Container(
-					margin: const EdgeInsets.only(left: 10.0, right: 10, top: 50, bottom: 50),
-					height: 200,
-					width: 200,
-					decoration: BoxDecoration(
-						borderRadius: BorderRadius.circular(20),
-						color: Color(color),
-					),
-				child: Stack(
-					children: [
-						Align(
-							alignment: const Alignment(-0.99, -0.9),
-							child: Container(
-								margin: const EdgeInsets.all(15),
-								child: const Icon(
-									Icons.folder,	
-									color: Color.fromARGB(255, 32, 33, 32),
-									size: 22.0,
-								),
-							)
-						),
-						Align(
-							alignment: const Alignment(-0.99, -0.2),
-							child: Container(
-								margin: const EdgeInsets.all(15),
-								child: Text(title,
-									style: const TextStyle(
-										color: Color.fromARGB(255, 32, 33, 32),
-										fontSize: 18,
-										fontWeight: FontWeight.w700
-									),
-								),
-							)
-						),
-					]
-				),
+				  margin: const EdgeInsets.only(left: 10.0, right: 10, top: 50, bottom: 50),
+				  height: 200,
+				  width: 200,
+				  decoration: BoxDecoration(
+				    borderRadius: BorderRadius.circular(20),
+				    color: Color(color),
+				  ),
+				child: SizedBox(
+                  //constraints: const BoxConstraints(
+                   height: 200,
+                   width: 200,
+                  //),
+                  child: Stack(
+                    children: [
+                      Align(
+                        alignment: const Alignment(-0.99, -0.9),
+                        child: Container(
+                          margin: const EdgeInsets.all(15),
+                          child: const Icon(
+                            Icons.folder,	
+                            color: Color.fromARGB(255, 32, 33, 32),
+                            size: 22.0,
+                          ),
+                        )
+                      ),
+                      Align(
+                        alignment: const Alignment(-0.99, -0.2),
+                        child: Container(
+                          margin: const EdgeInsets.all(15),
+                          child: Text(title,
+                            style: const TextStyle(
+                              color: Color.fromARGB(255, 32, 33, 32),
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700
+                            ),
+                          ),
+                        )
+                      ),
+                    ]
+                  ),
+                ),
 				),
 			);
 	}
 
 	Widget miniFolderList(BuildContext context) {
-		return Container(
-          //height: MediaQuery.of(context).size.height * 0.45,
-          padding: const EdgeInsets.only(bottom: 100),
-          decoration: const BoxDecoration(
-            color: Color(0xff212120),
-          ), 
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            shrinkWrap: true,
-            children: [
-              miniFolder(title: "Medical Documents", color: 0xff9bdae6),
-                  miniFolder(title: "Educational Documents", color: 0xffa6ebd0),
-                  miniFolder(title: "Vehicle Documents", color: 0xfff9e6b5),
-                  miniFolder(title: "Personal Documents", color: 0xffebd1de),
-                  miniFolder(title: "Other Documents", color: 0xffedebe2),
-                  
-            ]
-          ),
+          return Container(
+                    //height: MediaQuery.of(context).size.height * 0.45,
+                    padding: const EdgeInsets.only(bottom: 100),
+                    decoration: const BoxDecoration(
+                      color: Color(0xff212120),
+                    ), 
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      shrinkWrap: true,
+                      children: [
+                        miniFolder(title: "Medical Documents", color: 0xff9bdae6),
+                            miniFolder(title: "Educational Documents", color: 0xffa6ebd0),
+                            miniFolder(title: "Vehicle Documents", color: 0xfff9e6b5),
+                            miniFolder(title: "Personal Documents", color: 0xffebd1de),
+                            miniFolder(title: "Other Documents", color: 0xffedebe2),
+                            
+                      ]
+                    ),
         );
 	}
 
 	@override
 	Widget build(BuildContext context) {
 		return Scaffold(
-      		//backgroundColor: const Color.fromARGB(255, 32, 33, 32),
-          backgroundColor: const Color(0xff9bdae6),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () {},
+            child: const Icon(
+              Icons.file_open,
+            ),
+          ),
+          backgroundColor: Color(_color),
       		body: Stack(
       		  children: [
       		    ClipPath(
                 clipper: FolderClipper(),
-                child: SizedBox(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 500),
                   height: MediaQuery.of(context).size.height * 0.45,
                   width: MediaQuery.of(context).size.width,
                   child: miniFolderList(context)

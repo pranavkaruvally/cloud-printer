@@ -15,7 +15,7 @@ void pickFileAndMultipartSend() async {
 
 Future<void> multipartSend(String filePath) async {
 	//var uri = Uri.http('127.0.0.1:3000', '/print');
-	var uri = Uri.http('192.168.25.55:3000', '/print');
+	var uri = Uri.http('192.168.220.55:3000', '/print');
 	var request = http.MultipartRequest('POST', uri)
 		..files.add(await http.MultipartFile.fromPath(
 			'document', filePath

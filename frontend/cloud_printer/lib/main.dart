@@ -42,8 +42,13 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  final pageController = PageController(
+    initialPage: 1,
+  );
+
   @override
   Widget build(BuildContext context) {
     return const FrontPage();
+    // return CamScanner();
   }
 }

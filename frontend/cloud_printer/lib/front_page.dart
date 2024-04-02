@@ -1,5 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
+import 'package:cloud_printer/expandable_fab.dart';
+import 'package:cunning_document_scanner/cunning_document_scanner.dart';
+
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
+
+import 'package:cloud_printer/multipart_send.dart';
 
 
 class FrontPage extends StatefulWidget {
@@ -11,6 +21,7 @@ class FrontPage extends StatefulWidget {
 
 class _FrontPageState extends State<FrontPage> {
   int _color = 0xff9bdae6;
+  List<String> _pictures = [];
 
 	Widget miniFolder({String title="Folder name", int color = 0xff9bdae6}) {
 			return GestureDetector(
@@ -91,11 +102,25 @@ class _FrontPageState extends State<FrontPage> {
 	@override
 	Widget build(BuildContext context) {
 		return Scaffold(
-          floatingActionButton: FloatingActionButton(
-            onPressed: () {},
-            child: const Icon(
-              Icons.file_open,
-            ),
+          floatingActionButton: ExpandableFab(
+            distance: 112,
+            children: [
+              ActionButton(
+                onPressed: openPdfAndPrint,
+                icon: const Icon(Icons.file_open),
+              ),
+
+              ActionButton(
+                onPressed: () => {},
+                icon: const Icon(Icons.insert_photo),
+              ),
+
+              if (Platform.isAndroid)
+                ActionButton(
+                  onPressed: takePictureAndMakePdf,
+                  icon: const Icon(Icons.camera),
+                ),
+            ]
           ),
           backgroundColor: Color(_color),
       		body: Stack(
@@ -113,6 +138,56 @@ class _FrontPageState extends State<FrontPage> {
       		),
     	);
 	}
+
+  void openPdfAndPrint() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(allowedExtensions: ['pdf']);
+
+    if (result != null) {
+      multipartSend(result.files.single.path!);  
+    }
+  }
+
+  void takePictureAndMakePdf() async {
+      List<String> pictures;
+
+      try {
+        pictures = await CunningDocumentScanner.getPictures(isGalleryImportAllowed: true) ?? [];
+        if (!mounted) return;
+        setState(() {
+          _pictures = pictures;
+        });
+      } catch (exception) {
+        print("Exception caught!");
+      } 
+
+      if (_pictures.isNotEmpty) {
+        final pdf = pw.Document();
+
+        for (String picture in _pictures) {
+          final image = pw.MemoryImage(
+            File(picture).readAsBytesSync()
+          );
+
+          pdf.addPage(
+            pw.Page(
+              pageFormat: PdfPageFormat.a4,
+              build: (pw.Context pcontext) {
+                return pw.Container(
+                  alignment: pw.Alignment.center,
+                  child: pw.Image(image)
+                );
+              }
+            )
+          );
+        }
+
+          final output = await getTemporaryDirectory();
+          final file = File("${output.path}/${DateTime.fromMillisecondsSinceEpoch(DateTime.now().millisecond)}");
+          await file.writeAsBytes(await pdf.save());
+
+          multipartSend(file.path);
+      }
+  }
 }
 
 class FolderClipper extends CustomClipper<Path> {

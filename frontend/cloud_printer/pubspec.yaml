@@ -45,6 +45,7 @@ dependencies:
   cunning_document_scanner: ^1.2.1
   path_provider: ^2.1.2
   pdf: ^3.10.8
+  network_info_plus: ^5.0.2
 
 dev_dependencies:
   flutter_test:

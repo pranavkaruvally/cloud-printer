@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:cloud_printer/expandable_fab.dart';
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
+import 'package:network_info_plus/network_info_plus.dart';
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -21,7 +23,8 @@ class FrontPage extends StatefulWidget {
 
 class _FrontPageState extends State<FrontPage> {
   int _color = 0xff9bdae6;
-  List<String> _pictures = [];
+  List<String> _pictures = [], addresses = [];
+  String? ipAddress = "";
 
 	Widget miniFolder({String title="Folder name", int color = 0xff9bdae6}) {
 			return GestureDetector(
@@ -106,12 +109,15 @@ class _FrontPageState extends State<FrontPage> {
             distance: 112,
             children: [
               ActionButton(
-                onPressed: openPdfAndPrint,
+                onPressed: () => openPdfAndPrint(ipAddress),
                 icon: const Icon(Icons.file_open),
               ),
 
               ActionButton(
-                onPressed: () => {},
+                onPressed: () { 
+                  shakeHandWithServer(ipAddress);
+                }
+                ,
                 icon: const Icon(Icons.insert_photo),
               ),
 
@@ -139,11 +145,40 @@ class _FrontPageState extends State<FrontPage> {
     	);
 	}
 
-  void openPdfAndPrint() async {
+  void shakeHandWithServer(String? ipAddress) async {
+    final info = NetworkInfo();
+    String ipAddress = await info.getWifiBroadcast() ?? "";
+
+    if (ipAddress == "") {
+      print("Error: broadcast ip unassigned");
+    }
+    var destinationAddress = InternetAddress(ipAddress.toString());
+
+    RawDatagramSocket.bind(InternetAddress.anyIPv4, 3000).then(
+      (RawDatagramSocket udpSocket) {
+        udpSocket.broadcastEnabled = true;
+        udpSocket.listen((e) {
+          Datagram? dg = udpSocket.receive();
+
+          if (dg != null) {
+            print("received from address: ${dg.address.address}");
+            addresses.add(dg.address.address);
+          }
+        }); 
+
+        List<int> data = utf8.encode('TEST');
+        udpSocket.send(data, destinationAddress, 3000);
+      });
+  }
+  void openPdfAndPrint(String? ipAddress) async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(allowedExtensions: ['pdf']);
+    
+    if (addresses.isNotEmpty) {
+      ipAddress = addresses[0];
+    }
 
     if (result != null) {
-      multipartSend(result.files.single.path!);  
+      multipartSend(result.files.single.path!, ipAddress);  
     }
   }
 
@@ -185,7 +220,7 @@ class _FrontPageState extends State<FrontPage> {
           final file = File("${output.path}/${DateTime.fromMillisecondsSinceEpoch(DateTime.now().millisecond)}");
           await file.writeAsBytes(await pdf.save());
 
-          multipartSend(file.path);
+          multipartSend(file.path, ipAddress);
       }
   }
 }

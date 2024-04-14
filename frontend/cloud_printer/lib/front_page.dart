@@ -10,6 +10,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart';
 
 import 'package:cloud_printer/multipart_send.dart';
 
@@ -23,14 +24,43 @@ class FrontPage extends StatefulWidget {
 
 class _FrontPageState extends State<FrontPage> {
   int _color = 0xff9bdae6;
+  String currentTitle = "Medical Documents";
   List<String> _pictures = [], addresses = [];
   String? ipAddress = "";
+
+  List<String> medicalDocuments = [];
+  List<String> educationalDocuments = [];
+  List<String> vehicleDocuments = [];
+  List<String> personalDocuments = [];
+  List<String> otherDocuments = [];
+
+  Map<String, List<String>> nameToDir = {
+      "Medical Documents": [],
+      "Educational Documents": [],
+      "Vehicle Documents": [],
+      "Personal Documents": [],
+      "Other Documents": [],
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    nameToDir = {
+      "Medical Documents": medicalDocuments,
+      "Educational Documents": educationalDocuments,
+      "Vehicle Documents": vehicleDocuments,
+      "Personal Documents": personalDocuments,
+      "Other Documents": otherDocuments,
+    };
+    loadDocumentsDirectory();
+  }
 
 	Widget miniFolder({String title="Folder name", int color = 0xff9bdae6}) {
 			return GestureDetector(
 				onTap: () {
           setState(() {
             _color = color;
+            currentTitle = title;
           });
         },
 
@@ -102,6 +132,33 @@ class _FrontPageState extends State<FrontPage> {
         );
 	}
 
+  Widget fileTile({required String fileName, bool addNew=false}) {
+    String modifiedFileName = basename(fileName);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      width: 120,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: (addNew == false) 
+          ? <Widget> [
+              const Icon(
+                size: 60,
+                Icons.picture_as_pdf
+              ),
+              Text(modifiedFileName, overflow: TextOverflow.ellipsis),
+          ]
+          : <Widget> [
+              const Icon(
+                size: 60,
+                Icons.add,
+              ),
+              const Text("New"),
+          ],
+      )
+    );
+  }
+
 	@override
 	Widget build(BuildContext context) {
 		return Scaffold(
@@ -111,6 +168,11 @@ class _FrontPageState extends State<FrontPage> {
               ActionButton(
                 onPressed: () => openPdfAndPrint(ipAddress),
                 icon: const Icon(Icons.file_open),
+              ),
+
+              ActionButton(
+                onPressed: loadDocumentsDirectory,
+                icon: const Icon(Icons.file_download),
               ),
 
               ActionButton(
@@ -131,15 +193,34 @@ class _FrontPageState extends State<FrontPage> {
           backgroundColor: Color(_color),
       		body: Stack(
       		  children: [
-      		    ClipPath(
-                clipper: FolderClipper(),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 500),
-                  height: MediaQuery.of(context).size.height * 0.45,
-                  width: MediaQuery.of(context).size.width,
+      		    SizedBox(
+                height: MediaQuery.of(context).size.height * 0.45,
+                child: ClipPath(
+                  clipper: FolderClipper(),
                   child: miniFolderList(context)
                 ),
               ),
+              //if (otherDocuments.isNotEmpty)
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.45,
+                    child: GridView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      itemCount: (nameToDir[currentTitle]?.length)! + 1,
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                      ),
+                      itemBuilder: (BuildContext context, int index) {
+                        if (index < nameToDir[currentTitle]!.length) {
+                          return fileTile(fileName: nameToDir[currentTitle]![index]);
+                        } else {
+                          return fileTile(fileName: "Add", addNew: true);
+                        }
+                      },
+                    ),
+                  )
+                ),
       		  ],
       		),
     	);
@@ -170,6 +251,7 @@ class _FrontPageState extends State<FrontPage> {
         udpSocket.send(data, destinationAddress, 3000);
       });
   }
+
   void openPdfAndPrint(String? ipAddress) async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(allowedExtensions: ['pdf']);
     
@@ -180,6 +262,54 @@ class _FrontPageState extends State<FrontPage> {
     if (result != null) {
       multipartSend(result.files.single.path!, ipAddress);  
     }
+  }
+
+
+  void loadDocumentsDirectory() async {
+    final appDir = await getApplicationDocumentsDirectory();
+
+    final medicalDocumentsFolder = Directory("${appDir.path}/Cloud Printer/Medical Documents");
+    final educationalDocumentsFolder = Directory("${appDir.path}/Cloud Printer/Educational Documents");
+    final vehicleDocumentsFolder = Directory("${appDir.path}/Cloud Printer/Vehicle Documents");
+    final personalDocumentsFolder = Directory("${appDir.path}/Cloud Printer/Personal Documents");
+    final otherDocumentsFolder = Directory("${appDir.path}/Cloud Printer/Other Documents");
+
+
+    if (!(await medicalDocumentsFolder.exists())) {
+      await medicalDocumentsFolder.create(recursive: true);
+      await educationalDocumentsFolder.create(recursive: true);
+      await vehicleDocumentsFolder.create(recursive: true);
+      await personalDocumentsFolder.create(recursive: true);
+      await otherDocumentsFolder.create(recursive: true);
+    }
+
+    await for (var doc in medicalDocumentsFolder.list(recursive: true, followLinks: false)) {
+      medicalDocuments.add(doc.path);
+    }
+
+    await for (var doc in educationalDocumentsFolder.list(recursive: true, followLinks: false)) {
+      educationalDocuments.add(doc.path);
+    }
+
+    await for (var doc in vehicleDocumentsFolder.list(recursive: true, followLinks: false)) {
+      vehicleDocuments.add(doc.path);
+    }
+
+    await for (var doc in personalDocumentsFolder.list(recursive: true, followLinks: false)) {
+      personalDocuments.add(doc.path);
+    }
+
+    await for (var doc in otherDocumentsFolder.list(recursive: true, followLinks: false)) {
+      otherDocuments.add(doc.path);
+    }
+
+    print("MD: $medicalDocuments");
+    print("ED: $educationalDocuments");
+    print("VD: $vehicleDocuments");
+    print("PD: $personalDocuments");
+    print("OD: $otherDocuments");
+
+    setState(() {});
   }
 
   void takePictureAndMakePdf() async {

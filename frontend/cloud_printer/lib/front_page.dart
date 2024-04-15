@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:cloud_printer/expandable_fab.dart';
@@ -13,6 +14,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart';
 
 import 'package:cloud_printer/multipart_send.dart';
+import 'package:open_filex/open_filex.dart';
 
 
 class FrontPage extends StatefulWidget {
@@ -213,9 +215,65 @@ class _FrontPageState extends State<FrontPage> {
                       ),
                       itemBuilder: (BuildContext context, int index) {
                         if (index < nameToDir[currentTitle]!.length) {
-                          return fileTile(fileName: nameToDir[currentTitle]![index]);
+                          return GestureDetector(
+                            onTap: () {
+                              showModalBottomSheet(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return SizedBox(
+                                    height: 130,
+                                    child: ListView(
+                                      children: [
+                                        ListTile(
+                                          contentPadding: const EdgeInsets.all(8),
+                                          leading: const Icon(Icons.picture_as_pdf),
+                                          title: const Text("Open file"),
+                                          onTap: () {
+                                            OpenFilex.open(
+                                              nameToDir[currentTitle]![index]
+                                            );
+                                          }
+                                        ),
+                                        ListTile(
+                                          contentPadding: const EdgeInsets.all(8),
+                                          leading: const Icon(Icons.print),
+                                          title: const Text("Take printout"),
+                                          onTap: () => openPdfAndPrint(ipAddress),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                            child: fileTile(
+                              fileName: nameToDir[currentTitle]![index]
+                            ),
+                          );
                         } else {
-                          return fileTile(fileName: "Add", addNew: true);
+                            return GestureDetector(
+                              onTap: () async {
+                                final baseDir = await getApplicationDocumentsDirectory();
+                                String baseDirPath = "${baseDir.path}/Cloud Printer/$currentTitle";
+                                FilePickerResult? result
+                                  = await FilePicker.platform.pickFiles();
+                                
+                                if (result != null) {
+                                  File file = File(result.files.single.path!);
+                                  Uint8List bytes = await file.readAsBytes();
+                                  String toFilePath = "$baseDirPath/${basename(result.files.single.path!)}";
+                                  File toFile = File(toFilePath);
+
+                                  await toFile.create(recursive: true);
+                                  await toFile.writeAsBytes(bytes);
+
+                                    setState(() {
+                                      nameToDir[currentTitle]!.add(toFilePath);
+                                    });
+                                }
+                              },
+                              child: fileTile(fileName: "Add", addNew: true)
+                            );
                         }
                       },
                     ),
@@ -302,12 +360,6 @@ class _FrontPageState extends State<FrontPage> {
     await for (var doc in otherDocumentsFolder.list(recursive: true, followLinks: false)) {
       otherDocuments.add(doc.path);
     }
-
-    print("MD: $medicalDocuments");
-    print("ED: $educationalDocuments");
-    print("VD: $vehicleDocuments");
-    print("PD: $personalDocuments");
-    print("OD: $otherDocuments");
 
     setState(() {});
   }

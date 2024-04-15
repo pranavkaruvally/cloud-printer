@@ -47,6 +47,7 @@ class _FrontPageState extends State<FrontPage> {
   @override
   void initState() {
     super.initState();
+    shakeHandWithServer();
     nameToDir = {
       "Medical Documents": medicalDocuments,
       "Educational Documents": educationalDocuments,
@@ -168,7 +169,35 @@ class _FrontPageState extends State<FrontPage> {
             distance: 112,
             children: [
               ActionButton(
-                onPressed: () => openPdfAndPrint(ipAddress),
+                onPressed: () async {
+                  shakeHandWithServer();
+
+                  await showModalBottomSheet(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return SizedBox(
+                        height: 200,
+                        child: ListView.builder(
+                          itemCount: addresses.length,
+                          itemBuilder: (context, index) {
+                            return ListTile(
+                              contentPadding: const EdgeInsets.all(8.0),
+                              leading: const Icon(Icons.link),
+                              title: Text(addresses[index]),
+                              onTap: () {
+                                ipAddress = addresses[index];
+                                Navigator.pop(context);
+                              }
+                            );
+                          },
+                        ),
+                      );
+                    }
+                  );
+                  if (ipAddress != "") {
+                    openPdfAndPrint(ipAddress);
+                  }
+                },
                 icon: const Icon(Icons.file_open),
               ),
 
@@ -179,7 +208,6 @@ class _FrontPageState extends State<FrontPage> {
 
               ActionButton(
                 onPressed: () { 
-                  shakeHandWithServer(ipAddress);
                 }
                 ,
                 icon: const Icon(Icons.insert_photo),
@@ -284,7 +312,7 @@ class _FrontPageState extends State<FrontPage> {
     	);
 	}
 
-  void shakeHandWithServer(String? ipAddress) async {
+  void shakeHandWithServer() async {
     final info = NetworkInfo();
     String ipAddress = await info.getWifiBroadcast() ?? "";
 
@@ -301,7 +329,9 @@ class _FrontPageState extends State<FrontPage> {
 
           if (dg != null) {
             print("received from address: ${dg.address.address}");
-            addresses.add(dg.address.address);
+            if (!addresses.contains(dg.address.address)) {
+              addresses.add(dg.address.address);
+            }
           }
         }); 
 
@@ -314,7 +344,7 @@ class _FrontPageState extends State<FrontPage> {
     FilePickerResult? result = await FilePicker.platform.pickFiles(allowedExtensions: ['pdf']);
     
     if (addresses.isNotEmpty) {
-      ipAddress = addresses[0];
+      //ipAddress = addresses[0];
     }
 
     if (result != null) {

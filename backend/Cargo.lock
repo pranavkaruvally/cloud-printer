@@ -30,6 +30,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
+ "printers",
  "threadpool",
  "tokio",
 ]
@@ -391,6 +392,15 @@ name = "pin-utils"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
+
+[[package]]
+name = "printers"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "601970f11a0c22e37e10f0e7432c4926e714f04f020ad8f87d9784e051311d2d"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "proc-macro2"

@@ -15,6 +15,8 @@ use http_body_util::{combinators::BoxBody, BodyExt, Empty};
 use std::fs;
 use std::io::prelude::*;
 
+use printers;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     //let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
@@ -51,11 +53,85 @@ async fn echo(
             Ok(Response::new(full(contents)))
         },
 
+        (&Method::GET, "/printers") => {
+            //let mut vec = Vec::new();
+            let mut printer_string: String = "{\"printers\":[".to_string();
+            let printer_list = printers::get_printers();
+
+            for printer in printer_list.clone() {
+                // vec.push(printer.system_name);
+                // printer_string += &(printer.system_name + ",").to_string();
+                printer_string += &format!("\"{}\",", printer.system_name).as_str();
+            }
+            printer_string.remove(printer_string.len() - 1);
+            printer_string += "]}";
+
+            println!("{}", &printer_string);
+            
+            Ok(Response::new(full(printer_string)))
+        },
+
+        //(&Method::POST, "/printers") => {
+        //    let data = req.into_body().collect().await.unwrap().to_bytes();
+        //    selected_printer = std::str::from_utf8(&data).unwrap();
+        //    println!("Printer {} selected", selected_printer);
+        //    Ok(Response::new(full("Printer selected")))
+        //},
+
         (&Method::POST, "/echo") => Ok(Response::new(req.into_body().boxed())),
 
         (&Method::POST, "/print") => {
+            let selected_printer = req.headers().get("printer").unwrap().to_str().unwrap().to_string();
             _ = parse_multipart(req).await;
-            Ok(Response::new(full("Printed...")))
+            
+            println!("Currently selected printer: {}", selected_printer);
+            //if selected_printer != "" {
+            //    println!("Printing from: {}", &selected_printer);
+            //    let status1 = printers::print_file(&selected_printer, "dst/print_file.pdf", None);
+            //    
+            //    match status1 {
+            //        Ok(_) => {
+            //            return Ok(Response::new(full("Printed...")));
+            //        },
+            //        Err(value) => {
+            //            return Ok(Response::new(full(value)));
+            //        }
+            //    }
+            //}
+
+            //Ok(Response::new(full("Print failed...!")))
+            let printers_list = printers::get_printers();
+
+            println!("{:?}", printers_list);
+
+            if printers_list.len() > 0 {
+                let printer: printers::printer::Printer ;
+                match selected_printer.parse::<usize>() {
+                    Ok(n) => {
+                        printer = printers_list[n].clone();
+                        let _status1 = printer.print_file("dst/print_file.pdf", None);
+
+                        match _status1 {
+                            Ok(_) => {
+                                return Ok(Response::new(full("Printed...")));
+                            },
+                            Err(u) => {
+                                return Ok(Response::new(full(u)));
+                            }
+                        }
+                    },
+                    Err(_) => {
+                        return Ok(Response::new(full("Parsing failed!")));
+                    }
+                }
+            }
+                Ok(Response::new(full("Print failed...!")))
+
+                // let _status1 = printer.print_file("dst/print_file.pdf", None);
+                // Ok(Response::new(full("Printed...")))
+            // } else {
+                // Ok(Response::new(full("Print failed!")))
+            // }
         },
 
         (&Method::POST, "/echo/uppercase") => {

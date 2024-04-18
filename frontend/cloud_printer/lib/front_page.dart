@@ -27,6 +27,7 @@ class FrontPage extends StatefulWidget {
 class _FrontPageState extends State<FrontPage> {
   int _color = 0xff9bdae6;
   String currentTitle = "Medical Documents";
+  String currentPrinter = "";
   List<String> _pictures = [], addresses = [];
   String? ipAddress = "";
 
@@ -169,6 +170,45 @@ class _FrontPageState extends State<FrontPage> {
             distance: 112,
             children: [
               ActionButton(
+                onPressed: () {
+                  //List<String> printerList = await fetchPrinterList(ipAddress);
+                  //showModalBottomSheet(
+                  //  context: context,
+                  //  builder: builder
+                  //  );
+                  fetchPrinterList(ipAddress).then(
+                    (printerList) {
+                      showModalBottomSheet(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return SizedBox(
+                            height: 200,
+                            child: ListView.builder(
+                              itemCount: printerList.length,
+                              itemBuilder: (BuildContext context, index) {
+                                return ListTile(
+                                  leading: const Icon(Icons.print),
+                                  title: Text(printerList[index]),
+                                  onTap: () {
+                                    currentPrinter = index.toString();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text("Selecting: ${printerList[index]}"),)
+                                    );
+                                    selectPrinter(printer: currentPrinter, ipAddress: ipAddress!);
+                                    Navigator.pop(context);
+                                  }
+                                );
+                              }
+                            ),
+                          );
+                        }
+                        );
+                    }
+                  );
+                  },
+                icon: const Icon(Icons.print),
+              ),
+              ActionButton(
                 onPressed: () async {
                   shakeHandWithServer();
 
@@ -194,28 +234,37 @@ class _FrontPageState extends State<FrontPage> {
                       );
                     }
                   );
+                  //if (ipAddress != "") {
+                  //  openPdfAndPrint(ipAddress);
+                  //}
+                },
+                icon: const Icon(Icons.link),
+              ),
+
+              //ActionButton(
+              //  onPressed: loadDocumentsDirectory,
+              //  icon: const Icon(Icons.file_download),
+              //),
+
+              ActionButton(
+                onPressed: () {
                   if (ipAddress != "") {
                     openPdfAndPrint(ipAddress);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("No server selected!"),
+                      )
+                    );
                   }
                 },
+                
                 icon: const Icon(Icons.file_open),
-              ),
-
-              ActionButton(
-                onPressed: loadDocumentsDirectory,
-                icon: const Icon(Icons.file_download),
-              ),
-
-              ActionButton(
-                onPressed: () { 
-                }
-                ,
-                icon: const Icon(Icons.insert_photo),
               ),
 
               if (Platform.isAndroid)
                 ActionButton(
-                  onPressed: takePictureAndMakePdf,
+                  onPressed: () => takePictureAndMakePdf(context: context),
                   icon: const Icon(Icons.camera),
                 ),
             ]
@@ -266,7 +315,29 @@ class _FrontPageState extends State<FrontPage> {
                                           contentPadding: const EdgeInsets.all(8),
                                           leading: const Icon(Icons.print),
                                           title: const Text("Take printout"),
-                                          onTap: () => openPdfAndPrint(ipAddress),
+                                          onTap: () {
+                                            if (ipAddress != "") {
+                                              multipartSend(nameToDir[currentTitle]![index], ipAddress, currentPrinter).then(
+                                                (status) {
+                                                  String msg = "";
+                                                  if (status == 200) {
+                                                    msg = "Printing...";
+                                                  } else {
+                                                    msg = "Print failed...!";
+                                                  }
+
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    SnackBar(content: Text(msg))
+                                                  );
+                                                }
+                                              );
+                                            } else {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(content: Text("Server not selected!")),
+                                              );
+                                            }
+                                            Navigator.pop(context);
+                                          },
                                         ),
                                       ],
                                     ),
@@ -317,27 +388,28 @@ class _FrontPageState extends State<FrontPage> {
     String ipAddress = await info.getWifiBroadcast() ?? "";
 
     if (ipAddress == "") {
-      print("Error: broadcast ip unassigned");
+     print("Error: broadcast ip unassigned");
     }
+    // addresses.add("192.168.124.55");
     var destinationAddress = InternetAddress(ipAddress.toString());
 
     RawDatagramSocket.bind(InternetAddress.anyIPv4, 3000).then(
-      (RawDatagramSocket udpSocket) {
-        udpSocket.broadcastEnabled = true;
-        udpSocket.listen((e) {
-          Datagram? dg = udpSocket.receive();
+     (RawDatagramSocket udpSocket) {
+       udpSocket.broadcastEnabled = true;
+       udpSocket.listen((e) {
+         Datagram? dg = udpSocket.receive();
 
-          if (dg != null) {
-            print("received from address: ${dg.address.address}");
-            if (!addresses.contains(dg.address.address)) {
-              addresses.add(dg.address.address);
-            }
-          }
-        }); 
+         if (dg != null) {
+           //print("received from address: ${dg.address.address}");
+           if (!addresses.contains(dg.address.address)) {
+             addresses.add(dg.address.address);
+           }
+         }
+       }); 
 
-        List<int> data = utf8.encode('TEST');
-        udpSocket.send(data, destinationAddress, 3000);
-      });
+       List<int> data = utf8.encode('TEST');
+       udpSocket.send(data, destinationAddress, 3000);
+     });
   }
 
   void openPdfAndPrint(String? ipAddress) async {
@@ -348,7 +420,7 @@ class _FrontPageState extends State<FrontPage> {
     }
 
     if (result != null) {
-      multipartSend(result.files.single.path!, ipAddress);  
+      multipartSend(result.files.single.path!, ipAddress, currentPrinter);  
     }
   }
 
@@ -394,7 +466,7 @@ class _FrontPageState extends State<FrontPage> {
     setState(() {});
   }
 
-  void takePictureAndMakePdf() async {
+  void takePictureAndMakePdf({required context}) async {
       List<String> pictures;
 
       try {
@@ -404,7 +476,10 @@ class _FrontPageState extends State<FrontPage> {
           _pictures = pictures;
         });
       } catch (exception) {
-        print("Exception caught!");
+        //print("Exception caught!");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Error creating PDF!"))
+        );
       } 
 
       if (_pictures.isNotEmpty) {
@@ -432,7 +507,7 @@ class _FrontPageState extends State<FrontPage> {
           final file = File("${output.path}/${DateTime.fromMillisecondsSinceEpoch(DateTime.now().millisecond)}");
           await file.writeAsBytes(await pdf.save());
 
-          multipartSend(file.path, ipAddress);
+          multipartSend(file.path, ipAddress, currentPrinter);
       }
   }
 }

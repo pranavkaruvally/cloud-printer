@@ -48,6 +48,7 @@ dependencies:
   network_info_plus: ^5.0.2
   path: ^1.9.0
   open_filex: ^4.4.0
+  network_discovery: ^1.0.0
 
 dev_dependencies:
   flutter_test:

@@ -1,11 +1,9 @@
 import 'dart:io';
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:cloud_printer/expandable_fab.dart';
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
-import 'package:network_info_plus/network_info_plus.dart';
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -15,6 +13,8 @@ import 'package:path/path.dart';
 
 import 'package:cloud_printer/multipart_send.dart';
 import 'package:open_filex/open_filex.dart';
+
+import 'package:network_discovery/network_discovery.dart';
 
 
 class FrontPage extends StatefulWidget {
@@ -384,32 +384,68 @@ class _FrontPageState extends State<FrontPage> {
 	}
 
   void shakeHandWithServer() async {
-    final info = NetworkInfo();
-    String ipAddress = await info.getWifiBroadcast() ?? "";
+    final String deviceIp = await NetworkDiscovery.discoverDeviceIpAddress();
 
-    if (ipAddress == "") {
-     print("Error: broadcast ip unassigned");
+    //print("Wireless IP: $ipAddress");
+    
+    if (deviceIp.isNotEmpty) {
+      print("IP: $deviceIp");
+      final String subnet = deviceIp.substring(0, deviceIp.lastIndexOf('.'));
+
+      const port = 3000;
+      final stream = NetworkDiscovery.discover(subnet, port);
+
+      stream.listen((NetworkAddress addr) {
+        if (!addresses.contains(addr.ip)) {
+          addresses.add(addr.ip);
+        }
+      }).onDone(() => print(addresses));
     }
-    // addresses.add("192.168.124.55");
-    var destinationAddress = InternetAddress(ipAddress.toString());
 
-    RawDatagramSocket.bind(InternetAddress.anyIPv4, 3000).then(
-     (RawDatagramSocket udpSocket) {
-       udpSocket.broadcastEnabled = true;
-       udpSocket.listen((e) {
-         Datagram? dg = udpSocket.receive();
+    //final info = NetworkInfo();
+    //String ipAddress = await info.getWifiBroadcast() ?? "";
 
-         if (dg != null) {
-           //print("received from address: ${dg.address.address}");
-           if (!addresses.contains(dg.address.address)) {
-             addresses.add(dg.address.address);
-           }
-         }
-       }); 
+    //if (ipAddress == "") {
+    // print("Error: broadcast ip unassigned");
+    //}
+    //// addresses.add("192.168.124.55");
+    //print(ipAddress);
+    //var destinationAddress = InternetAddress(ipAddress.toString());
+    //var destinationAddress = InternetAddress("x.y.z.255");
 
-       List<int> data = utf8.encode('TEST');
-       udpSocket.send(data, destinationAddress, 3000);
-     });
+    //RawDatagramSocket udpSocket = await RawDatagramSocket.bind(ipAddress, 12345);
+    //udpSocket.listen((RawSocketEvent event) {
+    //  if (event == RawSocketEvent.read) {
+    //    Datagram? datagram = udpSocket.receive();
+
+    //    if (datagram != null) {
+    //      String message = String.fromCharCodes(datagram.data);
+    //      print(message);
+    //      print("Address: ${datagram.address}");
+    //    }
+    //  }
+    //});
+
+    //udpSocket.send("Hello".codeUnits, destinationAddress, 5000);
+
+    //RawDatagramSocket.bind(InternetAddress.anyIPv4, 3002).then(
+    // (RawDatagramSocket udpSocket) {
+    //   udpSocket.broadcastEnabled = true;
+    //   udpSocket.listen((e) {
+    //     Datagram? dg = udpSocket.receive();
+
+    //     if (dg != null) {
+    //       //print("received from address: ${dg.address.address}");
+    //       if (!addresses.contains(dg.address.address)) {
+    //         addresses.add(dg.address.address);
+    //       }
+    //     }
+    //   }); 
+
+    //   List<int> data = utf8.encode('TEST');
+    //   udpSocket.send(data, destinationAddress, 5000);
+    //  // udpSocket.send(data, InternetAddress("192.168.29.75"), 5000);
+    // });
   }
 
   void openPdfAndPrint(String? ipAddress) async {

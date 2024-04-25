@@ -16,7 +16,6 @@ import 'package:open_filex/open_filex.dart';
 
 import 'package:network_discovery/network_discovery.dart';
 
-
 class FrontPage extends StatefulWidget {
 	const FrontPage({super.key});
 
@@ -384,77 +383,43 @@ class _FrontPageState extends State<FrontPage> {
 	}
 
   void shakeHandWithServer() async {
-    final String deviceIp = await NetworkDiscovery.discoverDeviceIpAddress();
+    String deviceIp = "";// = await NetworkDiscovery.discoverDeviceIpAddress();
+    final interfaces = await NetworkInterface.list();
 
+    for (var interface in interfaces) {
+      if (interface.name.contains('w')) {
+        for (var addr in interface.addresses) {
+          if (addr.type == InternetAddressType.IPv4) {
+            deviceIp = addr.address;
+            break;
+          }
+        }
+      }
+    }
     //print("Wireless IP: $ipAddress");
     
     if (deviceIp.isNotEmpty) {
-      print("IP: $deviceIp");
       final String subnet = deviceIp.substring(0, deviceIp.lastIndexOf('.'));
 
       const port = 3000;
+      // final stream = NetworkDiscovery.discover(subnet, port);
       final stream = NetworkDiscovery.discover(subnet, port);
-
       stream.listen((NetworkAddress addr) {
         if (!addresses.contains(addr.ip)) {
           addresses.add(addr.ip);
         }
-      }).onDone(() => print(addresses));
+      });
+      // }).onDone(() => print(addresses));
     }
 
-    //final info = NetworkInfo();
-    //String ipAddress = await info.getWifiBroadcast() ?? "";
-
-    //if (ipAddress == "") {
-    // print("Error: broadcast ip unassigned");
-    //}
-    //// addresses.add("192.168.124.55");
-    //print(ipAddress);
-    //var destinationAddress = InternetAddress(ipAddress.toString());
-    //var destinationAddress = InternetAddress("x.y.z.255");
-
-    //RawDatagramSocket udpSocket = await RawDatagramSocket.bind(ipAddress, 12345);
-    //udpSocket.listen((RawSocketEvent event) {
-    //  if (event == RawSocketEvent.read) {
-    //    Datagram? datagram = udpSocket.receive();
-
-    //    if (datagram != null) {
-    //      String message = String.fromCharCodes(datagram.data);
-    //      print(message);
-    //      print("Address: ${datagram.address}");
-    //    }
-    //  }
-    //});
-
-    //udpSocket.send("Hello".codeUnits, destinationAddress, 5000);
-
-    //RawDatagramSocket.bind(InternetAddress.anyIPv4, 3002).then(
-    // (RawDatagramSocket udpSocket) {
-    //   udpSocket.broadcastEnabled = true;
-    //   udpSocket.listen((e) {
-    //     Datagram? dg = udpSocket.receive();
-
-    //     if (dg != null) {
-    //       //print("received from address: ${dg.address.address}");
-    //       if (!addresses.contains(dg.address.address)) {
-    //         addresses.add(dg.address.address);
-    //       }
-    //     }
-    //   }); 
-
-    //   List<int> data = utf8.encode('TEST');
-    //   udpSocket.send(data, destinationAddress, 5000);
-    //  // udpSocket.send(data, InternetAddress("192.168.29.75"), 5000);
-    // });
   }
 
   void openPdfAndPrint(String? ipAddress) async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(allowedExtensions: ['pdf']);
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf']
+      );
     
-    if (addresses.isNotEmpty) {
-      //ipAddress = addresses[0];
-    }
-
     if (result != null) {
       multipartSend(result.files.single.path!, ipAddress, currentPrinter);  
     }
